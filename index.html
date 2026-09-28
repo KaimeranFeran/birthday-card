@@ -393,12 +393,137 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;}
   border:0;
 }
 
+/* ============================================================
+   惊喜浮层：全屏遮罩 + 图片居中 + 双语字幕
+   ============================================================ */
+.surprise{
+  position:fixed;inset:0;z-index:100;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:clamp(14px,3.6vw,32px);
+  background:var(--bg-primary);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+.surprise.on{display:flex;}
+/* 入场：由深转明的柔和淡入 */
+.surprise .inner{
+  display:flex;flex-direction:column;align-items:center;
+  gap:clamp(16px,3.6vw,26px);
+  width:min(560px,100%);
+  opacity:0;
+  animation:surpriseIn .9s var(--ease) .06s both;
+}
+@keyframes surpriseIn{
+  from{opacity:0;transform:translateY(22px) scale(.975);}
+  to{opacity:1;transform:none;}
+}
+/* 赤陶色细线从两侧展开，作为揭幕仪式感 */
+.surprise .veil{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(560px,88vw);height:1px;background:var(--accent);
+  animation:veil .85s var(--ease) both;
+  pointer-events:none;
+}
+@keyframes veil{
+  0%{transform:translate(-50%,-50%) scaleX(0);opacity:0;}
+  45%{transform:translate(-50%,-50%) scaleX(1);opacity:.85;}
+  100%{transform:translate(-50%,-50%) scaleX(1);opacity:0;}
+}
+
+/* 图片：白底原样，加 1px 描边与圆角，像一张贴在纸上的相纸 */
+.surprise figure{
+  margin:0;width:100%;
+  display:flex;justify-content:center;
+}
+.surprise img{
+  display:block;
+  width:auto;
+  max-width:100%;
+  max-height:min(48dvh,50vh);
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:#fff;
+  /* 白底与奶油底之间用一个极淡的衬垫过渡 */
+  box-shadow:0 0 0 8px var(--bg-secondary);
+}
+
+/* 双语字幕区 */
+.subs{
+  width:100%;
+  display:flex;flex-direction:column;
+  align-items:center;gap:clamp(8px,2vw,12px);
+  text-align:center;
+}
+.sub-line{
+  margin:0;
+  opacity:0;
+  transform:translateY(10px);
+  text-wrap:balance;
+}
+.sub-line.in{
+  animation:subIn .85s var(--ease) both;
+}
+@keyframes subIn{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:none;}
+}
+/* 日文：衬线、稍大，作为“说出来”的那一句 */
+.sub-ja{
+  font-family:var(--serif);
+  font-size:clamp(19px,5.2vw,28px);
+  font-weight:500;
+  letter-spacing:.01em;
+  line-height:1.5;
+  color:var(--text-primary);
+  max-width:20em;
+}
+/* 中文：无衬线、稍小，作为译文 */
+.sub-zh{
+  font-family:var(--sans);
+  font-size:clamp(14px,3.9vw,17px);
+  line-height:1.7;
+  color:var(--text-secondary);
+  max-width:24em;
+}
+.sub-rule{
+  width:34px;height:1px;background:var(--border);border:0;margin:0;
+  opacity:0;
+}
+.sub-rule.in{animation:subIn .85s var(--ease) both;}
+
+.surprise .close-tip{
+  margin:0;
+  font-family:"GT America Mono","SF Mono",ui-monospace,monospace;
+  font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--text-muted);
+  opacity:0;
+  animation:subIn .85s var(--ease) 2.6s both;
+}
+/* 关闭按钮：右上角，1px 边框幽灵按钮 */
+.surprise-close{
+  position:fixed;top:clamp(12px,3vw,22px);right:clamp(12px,3vw,22px);
+  z-index:101;
+  width:40px;height:40px;border-radius:6px;
+  display:grid;place-items:center;
+  font-size:18px;line-height:1;
+  color:var(--text-secondary);
+  background:var(--bg-primary);
+  border:1px solid var(--border);
+  transition:background .2s var(--ease),color .2s var(--ease);
+  opacity:0;
+  animation:subIn .6s var(--ease) .8s both;
+}
+.surprise-close:hover{background:var(--bg-secondary);color:var(--text-primary);}
+body.locked{overflow:hidden;}
+
 @media (max-width:640px){
   body{font-size:17px;}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
   .confetti{display:none;}
+  /* 字幕直接可见，不做逐句浮现 */
+  .sub-line,.sub-rule,.surprise .close-tip,.surprise .inner,.surprise-close{opacity:1!important;transform:none!important;}
 }
 @media print{
   .sky,.foot,.actions,.hint{display:none;}
@@ -462,12 +587,34 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;}
     </div>
 
     <div class="actions" id="actions">
+      <button class="btn hidden" id="surpriseBtn" type="button">点击还有惊喜</button>
       <button class="btn ghost hidden" id="againBtn" type="button">再点一次蜡烛</button>
-      <button class="btn hidden" id="shareBtn" type="button">复制祝福链接</button>
+      <button class="btn ghost hidden" id="shareBtn" type="button">复制祝福链接</button>
     </div>
   </section>
 
 </main>
+
+<!-- ===== 惊喜浮层 ===== -->
+<div class="surprise" id="surprise" role="dialog" aria-modal="true"
+     aria-label="生日惊喜" aria-hidden="true">
+  <span class="veil" aria-hidden="true"></span>
+  <button class="surprise-close" id="surpriseClose" type="button" aria-label="关闭惊喜">✕</button>
+  <div class="inner">
+    <figure>
+      <img id="surpriseImg" src="assets/surprise.png" alt="一个比着剪刀手、向你送上生日祝福的女孩" decoding="async">
+    </figure>
+    <div class="subs" id="subs" aria-live="polite">
+      <p class="sub-line sub-ja" id="subJa" lang="ja">お誕生日おめでとう、新しい一年が幸せで健康でありますように</p>
+      <hr class="sub-rule" id="subRule" aria-hidden="true">
+      <p class="sub-line sub-zh" id="subZh">生日快乐，祝新的一年幸福安康</p>
+    </div>
+    <p class="close-tip">点击任意位置关闭</p>
+  </div>
+</div>
+
+<!-- 语音：preload=auto 保证点击时能立即响 -->
+<audio id="voice" src="assets/voice.wav" preload="auto" playsinline></audio>
 
 <div class="confetti" id="confetti" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status"></div>
@@ -481,8 +628,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;}
   var cover = $('cover'), card = $('card'), cake = $('cake'), candle = $('candle');
   var meter = $('meter'), meterBar = $('meterBar'), blowHint = $('blowHint');
   var wish = $('wish'), wishText = $('wishText'), sign = $('sign');
-  var againBtn = $('againBtn'), shareBtn = $('shareBtn');
+  var againBtn = $('againBtn'), shareBtn = $('shareBtn'), surpriseBtn = $('surpriseBtn');
   var confettiBox = $('confetti'), toast = $('toast');
+  var surprise = $('surprise'), surpriseClose = $('surpriseClose'), surpriseImg = $('surpriseImg');
+  var subJa = $('subJa'), subZh = $('subZh'), subRule = $('subRule'), voice = $('voice');
 
   var blown = false;
   var micReady = false;
@@ -640,6 +789,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;}
     setTimeout(function(){ confetti(90); chime(); }, 320);
     setTimeout(function(){
       wish.classList.remove('hidden');
+      surpriseBtn.classList.remove('hidden');
       againBtn.classList.remove('hidden');
       shareBtn.classList.remove('hidden');
     }, 700);
@@ -756,11 +906,115 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;}
     hot = 0; smooth = 0;
     cake.classList.remove('out');
     wish.classList.add('hidden');
+    surpriseBtn.classList.add('hidden');
     againBtn.classList.add('hidden');
     shareBtn.classList.add('hidden');
     meterBar.style.width = '0%';
     blowHint.textContent = '再吹一次吧。';
+    closeSurprise(true);
     setTimeout(initMic, 300);
+  });
+
+  /* ============================================================
+     惊喜：图片 + 语音 + 双语字幕（字幕跟随音频时间轴浮现）
+     ============================================================ */
+  var subTimers = [];
+  var surpriseOpen = false;
+
+  function clearSubTimers(){
+    subTimers.forEach(function(t){ clearTimeout(t); });
+    subTimers = [];
+  }
+  function later(fn, ms){ subTimers.push(setTimeout(fn, ms)); }
+
+  // 字幕文本（与你给的内容一致）
+  var JA = 'お誕生日おめでとう、新しい一年が幸せで健康でありますように';
+  var ZH = '生日快乐，祝新的一年幸福安康';
+
+  function resetSubs(){
+    [subJa, subZh, subRule].forEach(function(el){
+      el.classList.remove('in');
+      el.style.animationDelay = '';
+    });
+  }
+
+  function showSubs(){
+    // 日文先入，赤陶细线，中文紧接 —— 稍错开，有“一句句说出来”的感觉
+    var steps = [
+      [0,    subJa],
+      [560,  subRule],
+      [820,  subZh]
+    ];
+    steps.forEach(function(pair){
+      var delay = pair[0], el = pair[1];
+      el.style.animationDelay = delay + 'ms';
+      // 双帧确保 transition/animation 能重新触发
+      later(function(){
+        el.classList.remove('in');
+        void el.offsetWidth;
+        el.classList.add('in');
+      }, 16);
+    });
+  }
+
+  function openSurprise(){
+    if(surpriseOpen) return;
+    surpriseOpen = true;
+    resetSubs();
+    surprise.classList.add('on');
+    surprise.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('locked');
+
+    // 图片先出，停顿一下，再让声音和字幕进来（图片优先呼吸感）
+    var delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 60 : 520;
+    later(function(){
+      // 播放语音；用户点击已授权，不会被自动播放策略拦截
+      try{
+        voice.currentTime = 0;
+        var p = voice.play();
+        if(p && p.catch){
+          p.catch(function(){
+            say('浏览器拦截了声音，点一下屏幕再试试。', 4200);
+          });
+        }
+      }catch(e){ /* 音频不可用不影响字幕 */ }
+      showSubs();
+    }, delay);
+
+    setTimeout(function(){ try{ surpriseClose.focus(); }catch(e){} }, delay + 60);
+  }
+
+  function closeSurprise(silent){
+    if(!surpriseOpen) return;
+    surpriseOpen = false;
+    clearSubTimers();
+    try{ voice.pause(); voice.currentTime = 0; }catch(e){}
+    surprise.classList.remove('on');
+    surprise.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('locked');
+    resetSubs();
+    if(!silent){ surpriseBtn.focus(); }
+  }
+
+  surpriseBtn.addEventListener('click', openSurprise);
+  surpriseClose.addEventListener('click', function(e){ e.stopPropagation(); closeSurprise(); });
+  // 点击任意位置也可关闭，但避开图片本身（方便长按保存）
+  surprise.addEventListener('click', function(e){
+    if(e.target === surpriseImg) return;
+    closeSurprise();
+  });
+  document.addEventListener('keydown', function(e){
+    if(surpriseOpen && (e.key === 'Escape' || e.key === 'Esc')){ e.preventDefault(); closeSurprise(); }
+  });
+
+  // 图片加载失败时给出提示，不让浮层出现空洞
+  surpriseImg.addEventListener('error', function(){
+    surpriseImg.alt = '惊喜图片加载失败';
+    say('惊喜图片没能加载出来，检查一下网络。', 4200);
+  });
+  // 提前预热音频，减少点击后的延迟
+  window.addEventListener('load', function(){
+    try{ voice.load(); }catch(e){}
   });
 
   /* ---------- 复制分享链接 ---------- */
