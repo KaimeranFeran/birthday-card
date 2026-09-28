@@ -828,7 +828,8 @@ body.locked{overflow:hidden;}
       var src = audioCtx.createMediaStreamSource(stream);
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.72;
+      // 平滑系数调低（0.72 → 0.5）：响应更快，轻吹也能及时反映到音量上
+      analyser.smoothingTimeConstant = 0.5;
       src.connect(analyser);
       dataArr = new Uint8Array(analyser.fftSize);
       micReady = true;
@@ -853,13 +854,16 @@ body.locked{overflow:hidden;}
       sum += v * v;
     }
     var rms = Math.sqrt(sum / dataArr.length);
-    smooth = smooth * 0.7 + rms * 0.3;
-    var level = Math.min(1, smooth * 3.4);
+    // 平滑系数降低后响应更快，指数也从 0.7/0.3 调成 0.6/0.4 让轻吹更容易被放大
+    smooth = smooth * 0.6 + rms * 0.4;
+    // 音量条放大系数 3.4 → 6.5：阈值降低后信号整体变小，需放大才看得出变化
+    var level = Math.min(1, smooth * 6.5);
     meterBar.style.width = (level * 100).toFixed(1) + '%';
 
-    // 吹气 = 持续的中等音量（排除说话/敲击的尖峰）
-    if(smooth > 0.055){ hot++; } else { hot = Math.max(0, hot - 2); }
-    if(hot >= 6){ blowOut('mic'); return; }
+    // 吹气判定阈值：0.055 → 0.022（麦克风灵敏度拉低，轻轻一吹就能触发）
+    // 持续帧数 6 → 4，反应更快，同时仍能排除说话、敲击等单帧尖峰
+    if(smooth > 0.022){ hot++; } else { hot = Math.max(0, hot - 2); }
+    if(hot >= 4){ blowOut('mic'); return; }
 
     rafId = requestAnimationFrame(loop);
   }
