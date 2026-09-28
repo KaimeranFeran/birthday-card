@@ -314,6 +314,41 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;}
 }
 @keyframes puffOut{from{opacity:.8;transform:scale(.3);}to{opacity:0;transform:scale(2.4);}}
 
+/* 手动吹蜡烛 */
+.blow-manual{
+  display:flex;flex-direction:column;align-items:center;
+  gap:10px;
+  margin-top:2px;
+}
+.blow-btn{
+  display:inline-flex;align-items:center;gap:.5em;
+  padding:11px 22px;
+  /* 用赤陶描边 + 赤陶文字，比普通幽灵按钮醒目，但不抢主按钮的实心地位 */
+  border-color:var(--accent);
+  color:var(--accent);
+  font-weight:500;
+}
+.blow-btn:hover{
+  background:var(--accent-wash);
+  color:var(--accent-hover);
+  border-color:var(--accent-hover);
+}
+.blow-btn > span{font-size:1.05em;line-height:1;}
+.blow-note{
+  margin:0;
+  font-size:12.5px;
+  line-height:1.6;
+  color:var(--text-muted);
+}
+/* 麦克风不可用时：按钮变主色实心，成为唯一出路 */
+.blow-manual.fallback .blow-btn{
+  background:var(--accent);
+  color:var(--cream);
+  border-color:var(--accent);
+}
+.blow-manual.fallback .blow-btn:hover{background:var(--accent-hover);border-color:var(--accent-hover);}
+.blow-manual.fallback .blow-note{color:var(--text-secondary);}
+
 /* 音量条 */
 .meter{
   width:min(300px,76vw);height:3px;border-radius:3px;overflow:hidden;
@@ -552,7 +587,7 @@ body.locked{overflow:hidden;}
   <!-- ===== 贺卡 ===== -->
   <section class="card" id="card" aria-live="polite">
     <p class="dateline" id="dateline">2026 · 09 · 28 · Monday</p>
-    <h1 class="greet" id="greet">亲爱的 <em>徐赫</em>，生日快乐</h1>
+    <h1 class="greet" id="greet"><em>徐赫</em>，生日快乐</h1>
     <p class="sub" id="sub">今天是专属于你的日子，愿所有的好运气都朝你走来。</p>
 
     <hr class="rule" aria-hidden="true">
@@ -580,6 +615,14 @@ body.locked{overflow:hidden;}
 
     <div class="meter" id="meter" aria-hidden="true"><i id="meterBar"></i></div>
     <p class="blow-hint" id="blowHint">对着麦克风<b>吹一口气</b>，把蜡烛吹灭吧。</p>
+
+    <!-- 手动吹蜡烛：麦克风不方便时的显式入口 -->
+    <div class="blow-manual" id="blowManual">
+      <button class="btn ghost blow-btn" id="blowBtn" type="button">
+        <span aria-hidden="true">💨</span> 手动吹蜡烛
+      </button>
+      <p class="blow-note" id="blowNote">不方便用麦克风？点这里。</p>
+    </div>
 
     <div class="wish hidden" id="wish">
       <p id="wishText">蜡烛灭了，愿望一定会实现的。</p>
@@ -629,6 +672,7 @@ body.locked{overflow:hidden;}
   var meter = $('meter'), meterBar = $('meterBar'), blowHint = $('blowHint');
   var wish = $('wish'), wishText = $('wishText'), sign = $('sign');
   var againBtn = $('againBtn'), shareBtn = $('shareBtn'), surpriseBtn = $('surpriseBtn');
+  var blowManual = $('blowManual'), blowBtn = $('blowBtn'), blowNote = $('blowNote');
   var confettiBox = $('confetti'), toast = $('toast');
   var surprise = $('surprise'), surpriseClose = $('surpriseClose'), surpriseImg = $('surpriseImg');
   var subJa = $('subJa'), subZh = $('subZh'), subRule = $('subRule'), voice = $('voice');
@@ -661,7 +705,6 @@ body.locked{overflow:hidden;}
 
   function setGreet(el, name){
     el.textContent = '';
-    el.append('亲爱的 ');
     var em = document.createElement('em');
     em.textContent = name;
     el.append(em, '，生日快乐');
@@ -795,6 +838,7 @@ body.locked{overflow:hidden;}
     }, 700);
     blowHint.textContent = source === 'mic' ? '愿望已收到。' : '蜡烛灭了。';
     meter.classList.remove('on');
+    blowManual.classList.add('hidden');
     stopMic();
     say('🎉 生日快乐，' + TO + '！愿望已经替你收好啦');
   }
@@ -817,7 +861,8 @@ body.locked{overflow:hidden;}
 
   function initMic(){
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      blowHint.textContent = '这个浏览器不支持麦克风检测，点一下蜡烛也能吹灭。';
+      blowHint.textContent = '这个浏览器不支持麦克风检测，用下面的按钮吹灭吧。';
+      setFallback('这个浏览器不支持麦克风检测。');
       return;
     }
     navigator.mediaDevices.getUserMedia({
@@ -839,9 +884,16 @@ body.locked{overflow:hidden;}
     }).catch(function(err){
       var denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
       blowHint.textContent = denied
-        ? '没关系，点一下蜡烛（或长按）也能吹灭。'
-        : '没有检测到麦克风，点一下蜡烛也能吹灭。';
+        ? '麦克风没开也没关系，用下面的按钮吹灭。'
+        : '没有检测到麦克风，用下面的按钮吹灭。';
+      setFallback(denied ? '麦克风权限未开启。' : '没检测到麦克风。');
     });
+  }
+
+  /* 麦克风不可用时，把手动按钮升级为实心主按钮（此时它是唯一出路）*/
+  function setFallback(reason){
+    blowManual.classList.add('fallback');
+    blowNote.textContent = reason + '直接点按钮就行。';
   }
 
   var smooth = 0, hot = 0;
@@ -889,6 +941,8 @@ body.locked{overflow:hidden;}
     if(e){ e.preventDefault(); }
     blowOut('click');
   }
+  // 显式的手动吹蜡烛按钮（麦克风不方便时的主入口）
+  blowBtn.addEventListener('click', manualBlow);
   candle.addEventListener('click', manualBlow);
   candle.addEventListener('keydown', function(e){
     if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); manualBlow(e); }
@@ -914,6 +968,7 @@ body.locked{overflow:hidden;}
     againBtn.classList.add('hidden');
     shareBtn.classList.add('hidden');
     meterBar.style.width = '0%';
+    blowManual.classList.remove('hidden');
     blowHint.textContent = '再吹一次吧。';
     closeSurprise(true);
     setTimeout(initMic, 300);
